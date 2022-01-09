@@ -23,11 +23,17 @@ following Python modules are used
 
 Custom fields can be added to output too (will add an example in extra file)
 
-## Example
+## Usage Examples
 
-python3 phpipamclient.py show network 10.0.0.0/24  
-python3 phpipamclient.py show section lab  
-python3 phpipamclient.py show vlan 10
+*python3 phpipamclient.py show network 10.0.0.0/24*  
+*python3 phpipamclient.py show section lab*  
+*python3 phpipamclient.py show vlan 10*
+
+(if no Auth information are defined in script file, you will be asked for User /Password. For App Code authentication leave the user blank and enter the code as password)
+
+Possible too:
+Setting URL, AppID, App Code as argument:
+*python3 phpipamclient.py -v -a pyipamclient -k fcvg32jr3b4rfr43frfrgdgdfg show network 192.168.10.0/24*
 
 If found, output:
 
