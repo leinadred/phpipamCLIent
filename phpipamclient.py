@@ -116,6 +116,10 @@ def funshow(args,token):
                             subnetmaster = requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['name']
                         else:
                             subnetmaster = 'Root'
+                        subnet = str(ipaddress.IPv4Network(str(result['subnet'])+'/'+str(result['mask'])).with_netmask)
+                        subnetdesc = str(result['description'])
+                        subnetedit = str(result['editDate'])
+                        subnetscandisc = str(result['lastScan'])+' // '+str(result['lastDiscovery'])
                         print('''\
 Network found, details below:
 ----------------------------------------------------------------
@@ -126,14 +130,14 @@ Network found, details below:
     Master Subnet:      {4}
     VLan (VLan Name):   {5} ({6})
     L2 Domain:          {7}
-    Owner:              {8}
-    Notes:              {9}
+    Last Edit:          {8}
+    Scan/Discovery:     {9}
 --------------------------------    
     Link:               {10}
 ----------------------------------------------------------------
 
 
-'''.format(section,str(ipaddress.IPv4Network(str(result['subnet'])+'/'+str(result['mask'])).with_netmask),str(result['description']),nameserversn+' {'+nameserverss+'}',subnetmaster,str(vlanid), str(vlanname),str(vlandom),'','', baseurl+'subnets/'+str(result['sectionId'])+'/'+str(result['id'])))
+'''.format(section,subnet,subnetdesc,nameserversn+' {'+nameserverss+'}',subnetmaster,str(vlanid), str(vlanname),str(vlandom),subnetedit,subnetscandisc,baseurl+'subnets/'+str(result['sectionId'])+'/'+str(result['id'])))
                 else: print('Network "{}" not found or not authorized!'.format(subnet))
             vlanid = ''; vlanname = ''; vlandom = ''; nameserverss = ''; nameserversn = ''; section = ''
             
