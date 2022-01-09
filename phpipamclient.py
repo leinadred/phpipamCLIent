@@ -11,47 +11,49 @@ urllib3.disable_warnings()
 
 #######################################################################################################
 
+#######################################################################################################
+baseurl = 'https://phpipam.lab.ackme.tech/'         # put in PHPIPAM URL (http(s)://hostname-or-fqdn/)
+appid = 'ipamCLIent'                                # AppID (configured at API mnu)
+apiusername = ''                                    # if auth is set to "User token"
+apiuserpass = ''                                    # if auth is set to "User token"    
+apitoken = ''                                       # if auth is set to "App roken"
+#######################################################################################################
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose', action='store_true', default=False, help='extended logging')
+parser.add_argument('-a', '--appid', help='set AppID ( overrides the app id set in scriptfile)')
+parser.add_argument('-k', '--key', help='API Key (overrides Settings in script file)')
+parser.add_argument('-u', '--baseurl', help='PHPIPAM Base URL (ie http://phpipam.asd.fg - overrides Settings in script file)')
+
 subparser = parser.add_subparsers(required=True, dest='cmd', help='Tell what to do (show||search||create||edit)')
 
 # show known network 
 parser_show = subparser.add_parser('show')
-parser_show.add_argument('object', nargs='*', type=str, default=None, help='object to show / edit /create - "show subnet 10.0.0.0/8 192.168.100.0/24"')
+parser_show.add_argument('object', nargs='*', type=str, default=None, help='object to show / edit /create - "show network 10.0.0.0/8 192.168.100.0/24" (currently supported: network | vlan | section)')
 
 #parser_show.set_defaults(func=funshow)
 
 # search command (when network is not known - i.e. search in Description)
 parser_search = subparser.add_parser('search')
-parser_search.add_argument('object', nargs='*', type=str, default=None, help='search subnet (use CIDR notation) multiple possible - for example "subnet(CIDR)" or "vlanID"')
+parser_search.add_argument('object', nargs='*', type=str, default=None, help='search network (use CIDR notation) multiple possible - for example "subnet(CIDR)" or "vlanID"')
 #parser_search.set_defaults(func=funsearch)
 
-# create command
-parser_create = subparser.add_parser('create')
-parser_create.add_argument('--subnet', type=str, required=True, help='(CIDR notated) network to create')
-parser_create.add_argument('--section', type=str, required=True, help='section to create the network object in')
-parser_create.add_argument('--desc', type=str, required=True, help='description of network object')
-parser_create.add_argument('--master', type=str, required=True, help='master subnet/folder')
-parser_create.add_argument('--vlan', type=str, required=False, help='VLAN to be linked with')
-parser_create.add_argument('--nameserver', type=str, required=True, help='nameserver set to resolve network')
+# create command (currently not implemented yet)
+#parser_create = subparser.add_parser('add')
+#parser_search.add_argument('object', nargs='*', type=str, default=None, help='search network (use CIDR notation) multiple possible - for example "subnet(CIDR)" or "vlanID"')
 
-#parser_create.set_defaults(func=funcreate)
-
-args = parser.parse_args()
 # parse the args and call whatever function was selected
-#args = parser.parse_args()
+args = parser.parse_args()
 
-#######################################################################################################
-baseurl = ''         # put in PHPIPAM URL (http(s)://hostname-or-fqdn/)
-appid = ''                                # AppID (configured at API mnu)
-apiusername = ''                                    # if auth is set to "User token"
-apiuserpass = ''                                    # if auth is set to "User token"    
-apitoken = ''                                       # if auth is set to "App roken"
-apiurl = baseurl+'/api/'+appid                      # creating URL to API Application
-#######################################################################################################
 
 if args.verbose:logging.basicConfig( level=logging.DEBUG)
 
+# overriding preset values with arguments
+if args.appid != None: appid = args.appid
+if args.key: apitoken = args.key
+if args.baseurl: baseurl = args.baseurl
+logging.debug('Setup: \nBase URL: '+baseurl+'\nApp ID: '+appid+'\nAPITOKEN '+apitoken)
+apiurl = baseurl+'api/'+appid                      # creating URL to API Application
 #######################################################################################################
 
 #LogIn - obtaining session token, if Authis set to "User Token", else App token is sent with every request.
@@ -68,68 +70,72 @@ if len(apiusername)==0 and len(apiuserpass)==0:
             else:
                 token=requests.post(apiurl+'/user', auth=(apiusername, apiuserpass), verify=False).json()['data']['token']
         elif len(apiusername)==0 and len(apiuserpass)>0:
-            if requests.post(apiurl+'/sections/0', headers={'token':apiuserpass}, verify=False).json()['code'] != 200:
-                raise Exception('Unauthorized - check auth settings at phpipam or values entered')
-            else:
+            authresult = requests.post(apiurl+'/sections/0', headers={'token':apiuserpass}, verify=False).json()['code']
+            if authresult == '200':
                 token = apiuserpass
+            else:
+                raise Exception('Got "'+str(authresult)+'" - Response Code - check auth settings at phpipam or values entered')
         else: print('something went wrong, please try again or check script / auth settings')
     else:
-        if requests.post(apiurl+'/sections/0', headers={'token':apiuserpass}, verify=False).json()['code'] != '401':
-            token = apiuserpass
+        # Testing apitoken by GETting Section '0' Infos
+        authresult = requests.get(apiurl+'/sections/0', headers={'token':apitoken}, verify=False).json()
+        if authresult['code'] == 200:
+            token = apitoken
         else: 
-            raise Exception('Got "401" Response Code - Unauthorized - check auth settings at phpipam or values entered')
+            raise Exception('Got "'+str(authresult)+'" - Response Code - check auth settings at phpipam or values entered')
 else:
     token = requests.post(apiurl+'/user', auth=(apiusername, apiuserpass), verify=False).json()['data']['token']
 logging.debug('auth Done - token: '+token)
-apiusername=''
-apiuserpass=''
+apiusername=''; apiuserpass=''; apitoken=''
+
+#######################################################################################################
 # Functions
 def funshow(args,token):
     logging.debug(args)
-    if args.object[0]=='subnet':
+    if args.object[0]=='network':
         logging.debug(args.object)
         for subnet in args.object:
-            if not subnet == 'subnet':
-                resp = requests.get(apiurl+'/subnets/search/'+subnet, headers={'token':str(token)}, verify=False)
-                logging.debug(resp.text+'\n\n\n')
-                if resp.json()['success']:
-                    if resp.json()['data'][0]['vlanId'] != None:
-                        vlanresp = requests.get(apiurl+'/vlan/'+str(resp.json()['data'][0]['vlanId']), headers={'token':str(token)}, verify=False)
-                        vlanid = vlanresp.json()['data']['number']
-                        vlanname = vlanresp.json()['data']['name']
-                        if vlanresp.json()['data']['domainId'] != 'null':
-                            vlandom = requests.get(apiurl+'/l2domains/'+vlanresp.json()['data']['domainId'], headers={'token':str(token)}, verify=False).json()['data']['name']
-                    else: vlanid = 'none defined'
-                    if resp.json()['data'][0]['nameserverId'] != '0':
-                        nameserversn = requests.get(apiurl+'/tools/nameservers/'+str(resp.json()['data'][0]['nameserverId']), headers={'token':str(token)}, verify=False).json()['data']['name']
-                        nameserverss = requests.get(apiurl+'/tools/nameservers/'+str(resp.json()['data'][0]['nameserverId']), headers={'token':str(token)}, verify=False).json()['data']['namesrv1']
-                    else: nameserversn = 'none defined'
-                    logging.debug(resp.text+'\n\n\n')
-                    print('''\
+            if not subnet == 'network':
+                resp = requests.get(apiurl+'/subnets/search/'+subnet, headers={'token':str(token)}, verify=False).json()
+                logging.debug(str(resp)+'\n\n\n')
+                if resp['success']:
+                    for result in resp['data']:
+                        if result['vlanId'] != None:
+                            vlanresp = requests.get(apiurl+'/vlan/'+str(result['vlanId']), headers={'token':str(token)}, verify=False).json()
+                            vlanid = vlanresp['data']['number']
+                            vlanname = vlanresp['data']['name']
+                            if vlanresp['data']['domainId'] != 'null':
+                                vlandom = requests.get(apiurl+'/l2domains/'+vlanresp['data']['domainId'], headers={'token':str(token)}, verify=False).json()['data']['name']
+                        else: vlanid = 'none defined'
+                        if result['nameserverId'] != '0':
+                            nameserversn = requests.get(apiurl+'/tools/nameservers/'+str(result['nameserverId']), headers={'token':str(token)}, verify=False).json()['data']['name']
+                            nameserverss = requests.get(apiurl+'/tools/nameservers/'+str(result['nameserverId']), headers={'token':str(token)}, verify=False).json()['data']['namesrv1']
+                        else: nameserversn = 'none defined'
+                        section = requests.get(apiurl+'/sections/'+str(result['sectionId'])+'/', headers={'token':str(token)}, verify=False).json()['data']['name']
+                        if result['masterSubnetId'] != '0':
+                            subnetmaster = requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['name']
+                        else:
+                            subnetmaster = 'Root'
+                        print('''\
 Network found, details below:
 ----------------------------------------------------------------
     Section:            {0}
-    Customer:           {1}
-    Subnet/Mask:        {2}
-    Description:        {3}
-    Nameservers:        {4}
-    Master Subnet:      {5}
-    VLan (VLan Name):   {6} ({7})
-    L2 Domain:          {8}
-    Owner:              {9}
-    Notes:              {10}
+    Subnet/Mask:        {1}
+    Description:        {2}
+    Nameservers:        {3}
+    Master Subnet:      {4}
+    VLan (VLan Name):   {5} ({6})
+    L2 Domain:          {7}
+    Owner:              {8}
+    Notes:              {9}
 --------------------------------    
-    Link:               {11}
+    Link:               {10}
 ----------------------------------------------------------------
 
 
-'''.format('','',str(ipaddress.IPv4Network(str(resp.json()['data'][0]['subnet'])+'/'+str(resp.json()['data'][0]['mask'])).with_netmask),str(resp.json()['data'][0]['description']),nameserversn+' {'+nameserverss+'}','master',str(vlanid), str(vlanname),str(vlandom),'','', baseurl+'subnets/'+str(resp.json()['data'][0]['sectionId'])+'/'+str(resp.json()['data'][0]['id'])))
+'''.format(section,str(ipaddress.IPv4Network(str(result['subnet'])+'/'+str(result['mask'])).with_netmask),str(result['description']),nameserversn+' {'+nameserverss+'}',subnetmaster,str(vlanid), str(vlanname),str(vlandom),'','', baseurl+'subnets/'+str(result['sectionId'])+'/'+str(result['id'])))
                 else: print('Network "{}" not found or not authorized!'.format(subnet))
-            vlanid=''
-            vlanname=''
-            vlandom=''
-            nameserverss=''
-            nameserversn=''
+            vlanid = ''; vlanname = ''; vlandom = ''; nameserverss = ''; nameserversn = ''; section = ''
             
     elif args.object[0]=='vlan':
         logging.debug(args.object)
@@ -229,7 +235,7 @@ Section(s) found, details below:
                             subnetinfo = str(len(requests.get(apiurl+'/sections/'+data['id']+'/subnets', headers={'token':str(token)}, verify=False).json()['data']))+'\n                    '
                             for subnet in requests.get(apiurl+'/sections/'+data['id']+'/subnets', headers={'token':str(token)}, verify=False).json()['data']:
                                 subnetinfo = subnetinfo+'''{0}/{1} \t{2}
-                        '''.format(subnet['subnet'],subnet['mask'], subnet['description'])
+                    '''.format(subnet['subnet'],subnet['mask'], subnet['description'])
                         else:
                             subnetinfo = None
                         sectiondns =  data['DNS']
