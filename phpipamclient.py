@@ -12,7 +12,7 @@ urllib3.disable_warnings()
 #######################################################################################################
 
 #######################################################################################################
-baseurl = 'https://phpipam.lab.ackme.tech/'         # put in PHPIPAM URL (http(s)://hostname-or-fqdn/)
+baseurl = 'https://phpipam.asd.fg/'         # put in PHPIPAM URL (http(s)://hostname-or-fqdn/)
 appid = 'ipamCLIent'                                # AppID (configured at API mnu)
 apiusername = ''                                    # if auth is set to "User token"
 apiuserpass = ''                                    # if auth is set to "User token"    
