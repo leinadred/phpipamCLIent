@@ -12,13 +12,8 @@ urllib3.disable_warnings()
 #######################################################################################################
 
 #######################################################################################################
-<<<<<<< Updated upstream
-baseurl = 'https://phpipam.asd.fg/'         # put in PHPIPAM URL (http(s)://hostname-or-fqdn/)
-appid = 'ipamCLIent'                                # AppID (configured at API mnu)
-=======
 baseurl = ''                                        # put in PHPIPAM URL (http(s)://hostname-or-fqdn/)
 appid = ''                                          # AppID (configured at API mnu)
->>>>>>> Stashed changes
 apiusername = ''                                    # if auth is set to "User token"
 apiuserpass = ''                                    # if auth is set to "User token"    
 apitoken = ''                                       # if auth is set to "App roken"
