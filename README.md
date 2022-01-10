@@ -1,9 +1,9 @@
+# phpipamCLIent
+
 ![license](https://img.shields.io/github/license/leinadred/phpipamCLIent)
 ![language](https://img.shields.io/github/languages/top/leinadred/phpipamCLIent)
 
-# phpipamCLIent
-
-CLI like phpipam client for showing networks, vlans and sections.
+CLI like  [PHPIPAM](https://github.com/phpipam/phpipam) client for showing networks, vlans and sections. Functionalities like editing and creating objects may follow.
 
 ## Setup
 
