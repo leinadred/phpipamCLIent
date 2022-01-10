@@ -12,8 +12,13 @@ urllib3.disable_warnings()
 #######################################################################################################
 
 #######################################################################################################
+<<<<<<< Updated upstream
 baseurl = 'https://phpipam.asd.fg/'         # put in PHPIPAM URL (http(s)://hostname-or-fqdn/)
 appid = 'ipamCLIent'                                # AppID (configured at API mnu)
+=======
+baseurl = ''                                        # put in PHPIPAM URL (http(s)://hostname-or-fqdn/)
+appid = ''                                          # AppID (configured at API mnu)
+>>>>>>> Stashed changes
 apiusername = ''                                    # if auth is set to "User token"
 apiuserpass = ''                                    # if auth is set to "User token"    
 apitoken = ''                                       # if auth is set to "App roken"
@@ -273,7 +278,7 @@ Link:               {6}
                         resp = requests.get(apiurl+'/addresses/', headers={'token':str(token)}, verify=False).json()
                         logging.debug(str(resp)+'\n\n\n')
                         if resp['success']:
-                            print('Caution! Search result contains more than {} entries. Reading massive data at one time can result in high load and/or issues at IPAM!'.format(50))
+                            print('Caution! Search result might contain MANY entries. Reading massive data at one time can result in high load and/or issues at IPAM!')
                             answer = input ('Are you sure?y/n\n')
                             if answer == 'n' or answer == 'N':
                                 raise SystemExit('Aborted')
