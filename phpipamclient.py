@@ -53,7 +53,8 @@ if args.appid != None: appid = args.appid
 if args.key: apitoken = args.key
 if args.baseurl: baseurl = args.baseurl
 logging.debug('Setup: \nBase URL: '+baseurl+'\nApp ID: '+appid+'\nAPITOKEN '+apitoken)
-apiurl = baseurl+'api/'+appid                      # creating URL to API Application
+if baseurl[-1] == '/': apiurl = baseurl+'api/'+appid
+else: apiurl = baseurl+'/api/'+appid               # creating URL to API Application
 #######################################################################################################
 
 #LogIn - obtaining session token, if Authis set to "User Token", else App token is sent with every request.
@@ -138,6 +139,7 @@ Network found, details below:
 
 
 '''.format(section,subnet,subnetdesc,nameserversn+' {'+nameserverss+'}',subnetmaster,str(vlanid), str(vlanname),str(vlandom),subnetedit,subnetscandisc,baseurl+'subnets/'+str(result['sectionId'])+'/'+str(result['id'])))
+                        section='';subnet='';vlanid = '';subnetdesc='';nameserverss = ''; nameserversn = '';vlanname = ''; vlandom = ''; subnetedit = '';subnetscandisc = ''
                 else: print('Network "{}" not found or not authorized!'.format(subnet))
             vlanid = ''; vlanname = ''; vlandom = ''; nameserverss = ''; nameserversn = ''; section = ''
             
@@ -260,7 +262,109 @@ Link:               {6}
 
 
 '''.format(sectionname,sectiondescription,mastersection,sectiondns,lastchange,subnetinfo,sectionlink))
+    if args.object[0]=='ip':
+        logging.debug(args.object)
+        for ip in args.object:
+            if not ip == 'ip': 
+                try:
+                    ipaddress.IPv4Address(ip)
+                except:
+                    if ip == 'all':
+                        resp = requests.get(apiurl+'/addresses/', headers={'token':str(token)}, verify=False).json()
+                        logging.debug(str(resp)+'\n\n\n')
+                        if resp['success']:
+                            print('Caution! Search result contains more than {} entries. Reading massive data at one time can result in high load and/or issues at IPAM!'.format(50))
+                            answer = input ('Are you sure?y/n\n')
+                            if answer == 'n' or answer == 'N':
+                                raise SystemExit('Aborted')
+                            elif answer == 'y' or answer == 'Y':
+                                pass
+                            else:
+                                raise SystemExit('Aborted - invalid answer')
+                            for data in resp['data']:
+                                logging.debug('Data:'+str(data))
+                                iphostname = data['hostname']
+                                iptag = data['tag']
+                                if data['deviceId'] == None: ipdevice = data['deviceId']
+                                else: ipdevice = ''
+                                if data['is_gateway']  == '0': ipdefgw = False
+                                elif data['is_gateway']  == '1': ipdefgw = True
+                                else: ipdefgw = 'Data ERROR'
+                                ipdesc =  data['description']
+                                ipowner = data['owner']
+                                iplastedit = data['editDate']
+                                iplastseen = data['lastSeen']
+                                ipnote = data['note']
+                                subnetinfo = requests.get(apiurl+'/subnets/'+data['subnetId'], headers={'token':str(token)}, verify=False).json()['data']
+                                ipsubnet = ipaddress.IPv4Network(str(subnetinfo['subnet'])+'/'+str(subnetinfo['mask']))
+                                ipsection = requests.get(apiurl+'/sections/'+subnetinfo['sectionId'], headers={'token':str(token)}, verify=False).json()['data']['name']
+                                iplink = baseurl+'/subnets/'+subnetinfo['sectionId']+'/'+data['subnetId']+'/address-details/'+data['id']
+                                print('''\
+IP Address "{0}" found, details below:
+----------------------------------------------------------------
+IP Address:         {0}
+Hostname:           {1}
+Tagged:             {2}
+Device:             {3}
+Is Default Gateway: {4}
+Subnet:             {5}
+Section:            {6}
+--------------------------------    
+Description:        {7}
+Owner:              {8}
+Last Edit:          {9}
+Last Seen:          {10}
+Note:               {11}
+Link:               {12}
+----------------------------------------------------------------
 
+
+'''.format(data['ip'],iphostname,iptag,ipdevice,ipdefgw,ipsubnet,ipsection,ipdesc,ipowner,iplastedit,iplastseen,ipnote,iplink))
+                else:    
+                    resp = requests.get(apiurl+'/addresses/search/'+str(ip), headers={'token':str(token)}, verify=False).json()
+                    logging.debug(str(resp)+'\n\n\n')
+                    if resp['success']:
+                        for data in resp['data']:
+                            logging.debug('Data:'+str(data))
+                            iphostname = data['hostname']
+                            iptag = data['tag']
+                            if data['deviceId'] == None: ipdevice = data['deviceId']
+                            else: ipdevice = ''
+                            if data['is_gateway']  == '0': ipdefgw = False
+                            elif data['is_gateway']  == '1': ipdefgw = True
+                            else: ipdefgw = 'Data ERROR'
+                            ipdesc =  data['description']
+                            ipowner = data['owner']
+                            iplastedit = data['editDate']
+                            iplastseen = data['lastSeen']
+                            ipnote = data['note']
+                            subnetinfo = requests.get(apiurl+'/subnets/'+data['subnetId'], headers={'token':str(token)}, verify=False).json()['data']
+                            ipsubnet = ipaddress.IPv4Network(str(subnetinfo['subnet'])+'/'+str(subnetinfo['mask']))
+                            ipsection = requests.get(apiurl+'/sections/'+subnetinfo['sectionId'], headers={'token':str(token)}, verify=False).json()['data']['name']
+                            iplink = baseurl+'/subnets/'+subnetinfo['sectionId']+'/'+data['subnetId']+'/address-details/'+data['id']
+                            print('''\
+IP Address "{0}" found, details below:
+----------------------------------------------------------------
+    IP Address:         {0}
+    Hostname:           {1}
+    Tagged:             {2}
+    Device:             {3}
+    Is Default Gateway: {4}
+    Subnet:             {5}
+    Section:            {6}
+--------------------------------    
+    Description:        {7}
+    Owner:              {8}
+    Last Edit:          {9}
+    Last Seen:          {10}
+    Note:               {11}
+    Link:               {12}
+----------------------------------------------------------------
+
+
+'''.format(ip,iphostname,iptag,ipdevice,ipdefgw,ipsubnet,ipsection,ipdesc,ipowner,iplastedit,iplastseen,ipnote,iplink))
+    else:
+        raise SystemExit('"object" not supported, please use "network, vlan or section"')
 def funcreate(args):
     logging.debug(args)
     if args.object[0]=='subnet':
