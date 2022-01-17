@@ -3,7 +3,7 @@
 ![license](https://img.shields.io/github/license/leinadred/phpipamCLIent)
 ![language](https://img.shields.io/github/languages/top/leinadred/phpipamCLIent)
 
-CLI like  [PHPIPAM](https://github.com/phpipam/phpipam) client for showing networks, vlans and sections. Functionalities like editing and creating objects may follow.
+CLI like phpipam client for showing networks, vlans and sections.
 
 ## Setup
 
@@ -26,11 +26,45 @@ following Python modules are used
 
 Custom fields can be added to output too (will add an example in extra file)
 
-## Example
+## Usage Examples
 
-python3 phpipamclient.py show network 10.0.0.0/24  
-python3 phpipamclient.py show section lab  
-python3 phpipamclient.py show vlan 10
+*python3 phpipamclient.py show network 10.0.0.0/24*  
+*python3 phpipamclient.py show section lab*  
+*python3 phpipamclient.py show vlan 10*
+
+### currently implemented commands and functionalities:  
+
+- show
+  - network  
+  Example: show network 192.168.10.0/24  
+           show network custom (shows custom fields for subnets)
+  - vlan
+  Example: show vlan 1929
+  - ip  
+  Example: show ip 192.168.10.1  
+           show ip all (use careful!)
+  - section  
+  Example: show section 1  
+           show section LAB  
+  - nameservers  
+  Example: show nameservers (shows all)  
+           show nameservers 1 (id, can be obtained by "show nameservers")
+  - custom
+- search
+  - host
+  Example search host fw.asd.fg
+- set  
+  - set network (id or cidr subnet) nameservers (id)  
+  - set network (id or cidr subnet) type (type-value)
+  (example custom field for categorizing network object)
+
+## auth
+
+(if no Auth information are defined in script file, you will be asked for User /Password. For App Code authentication leave the user blank and enter the code as password)
+
+Possible too:
+Setting URL, AppID, App Code as argument:
+*python3 phpipamclient.py --verbose --appid pyipamclient --key fcvg32jr3b4rfr43frfrgdgdfg --url <http://phpipam.asd.fg> show network 192.168.10.0/24*
 
 If found, output:
 
@@ -97,5 +131,5 @@ VLAN(s) found, details below:
 
 ## Coming up
 
-- vlan / network creation
-- example file for custom fields
+- vlan /network creation
+- more examples for custom fields
