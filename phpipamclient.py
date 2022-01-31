@@ -1,5 +1,6 @@
 # Daniel Meier
 # import modules
+from distutils.log import info
 import urllib3
 import argparse
 import logging
@@ -19,10 +20,11 @@ apitoken = ''                                       # if auth is set to "App rok
 #######################################################################################################
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-v', '--verbose', action='store_true', default=False, help='extended logging')
+parser.add_argument('-v', '--verbose', action='count', default=0, help='extended logging')
 parser.add_argument('-a', '--appid', help='set AppID ( overrides the app id set in scriptfile)')
 parser.add_argument('-k', '--key', help='API Key (overrides Settings in script file)')
 parser.add_argument('-u', '--baseurl', help='PHPIPAM Base URL (ie http://phpipam.asd.fg - overrides Settings in script file)')
+
 
 subparser = parser.add_subparsers(required=True, dest='cmd', help='Tell what to do (show||search||set||create)')
 
@@ -48,11 +50,13 @@ parser_create.add_argument('object', nargs='*', type=str, default=None, help='cr
 
 # parse the args and call whatever function was selected
 args = parser.parse_args()
-if args.verbose:logging.basicConfig( level=logging.DEBUG)
+
+# logging
+if args.verbose == 1:
+    logging.basicConfig(level=logging.INFO)
+elif args.verbose == 2:
+    logging.basicConfig(level=logging.DEBUG)
 logging.debug(args.object)
-
-
-if args.verbose:logging.basicConfig( level=logging.DEBUG)
 
 # overriding preset values with arguments
 if args.appid != None: appid = args.appid
@@ -101,11 +105,41 @@ logging.debug(args.object)
 
 #######################################################################################################
 # Functions
+# "argparsing" is meant to check if ie network ID or subnet is been asked for. 
+def fun_argparsing(args, token):
+    if args.cmd == 'show':
+        if args.object[0]=='network':
+            if fun_isipnetwork(args.object[1]):
+                funshow(args,token)
+            elif fun_isvalidid(args.object[0],args.object[1]):
+                args.object[1] = str(ipaddress.IPv4Network(str(requests.get(apiurl+'/subnets/'+args.object[1], headers={'token':str(token)}, verify=False).json()['data']['subnet'])+'/'+str(requests.get(apiurl+'/subnets/'+args.object[1], headers={'token':str(token)}, verify=False).json()['data']['mask'])))
+                funshow(args,token)
+            elif args.object[0]=='network' and args.object[1]=='custom':
+                funshow(args,token)
+            else:
+                print('Please verify input (show network <id> || <cidr>)')
+        elif args.object[0]=='vlan':
+            funshow(args,token)
+        else:
+            funshow(args,token)
+    elif args.cmd=='create':
+        funcreate(args,token)
+    elif args.cmd=='search':
+        if not args.object[0] == 'host':
+            raise SystemExit('Searching for {0} currently not implemented'.format(args.object[0]))
+        logging.info('about to search for {0} "{1}"'.format(args.object[0],args.object[1]))
+        funsearch(args,token)
+    elif args.cmd=='set':
+        funset(args,token)
+    else:
+        print('I do not know what to do - check input or see help')
+
+
 def funshow(args,token):
     if args.object[0]=='network':
         if args.object[1]=='custom':
-            logging.debug('showing custom fields\n\n')
             resp = requests.get(apiurl+'/subnets/custom_fields/', headers={'token':str(token)}, verify=False).json()
+            logging.info('showing custom fields\n{0}\n'.format(resp['data']))
             print('----------------------------------------------------------------')
             for a in resp['data']:
                 print('''Custom Fields for networks "{0}":
@@ -171,7 +205,6 @@ Network found, details below:
                 logging.debug(str(resp)+'\n\n\n')
                 if resp['success']:
                     for data in resp['data']:
-                        logging.debug('Data:'+str(data))
                         vlanid = data['vlanId']
                         vlanidnumber = data['number']
                         vlandata = requests.get(apiurl+'/vlan/'+vlanid, headers={'token':str(token)}, verify=False).json()
@@ -184,7 +217,7 @@ Network found, details below:
                         vlansubnet = ''
                         for vlansub in requests.get(apiurl+'/vlan/'+vlanid+'/subnets/', headers={'token':str(token)}, verify=False).json()['data']:
                             vlansubnet = vlansubnet+'\n\t\tSubnet:\t\t{0}\n\t\tDescription:\t{1}\n\t\tLink:\t\t{2}'.format(vlansub['subnet']+'/'+vlansub['mask'],vlansub['description'],str(baseurl+'subnets/'+vlansub['sectionId']+'/'+vlansub['id']))
-                        vlanlink = str(baseurl+'vlan/'+vlanid).replace('//','/')
+                        vlanlink = str(baseurl+'/vlan/'+vlanid).replace('//','/')
                         print('''\
 VLAN(s) found, details below:
 ----------------------------------------------------------------
@@ -211,7 +244,6 @@ VLAN(s) found, details below:
                     logging.debug(str(resp)+'\n\n\n')
                     if resp['success']:
                         for data in resp['data']:
-                            logging.debug('Data:'+str(data))
                             sectionid = data['id']
                             sectionname = data['name']
                             sectiondescription = data['description']
@@ -246,9 +278,9 @@ Section(s) found, details below:
 '''.format(sectionname,sectiondescription,mastersection,sectiondns,lastchange,subnetinfo,sectionlink))
                 else:
                     resp = requests.get(apiurl+'/sections/'+section+'/', headers={'token':str(token)}, verify=False).json()
+                    logging.debug(str(resp)+'\n\n\n')
                     if resp['success']:
                         data = resp['data']
-                        logging.debug('Data:'+str(data))
                         sectionid = data['id']
                         sectionname = data['name']
                         sectiondescription = data['description']
@@ -289,7 +321,6 @@ Link:               {6}
                     logging.debug(str(resp)+'\n\n\n')
                     if resp['success']:
                         for data in resp['data']:
-                            logging.debug('Data:'+str(data))
                             iphostname = data['hostname']
                             iptag = requests.get(apiurl+'/addresses/tags/'+data['tag'], headers={'token':str(token)}, verify=False).json()['data']['type']
                             if data['deviceId'] == None: ipdevice = data['deviceId']
@@ -341,7 +372,6 @@ IP Address "{0}" found, details below:
                             else:
                                 raise SystemExit('Aborted - invalid answer')
                             for data in resp['data']:
-                                logging.debug('Data:'+str(data))
                                 iphostname = data['hostname']
                                 iptag = requests.get(apiurl+'/addresses/tags/'+data['tag'], headers={'token':str(token)}, verify=False).json()['data']['type']
                                 if data['deviceId'] == None: ipdevice = data['deviceId']
@@ -430,6 +460,7 @@ def funcreate(args):
 def funsearch(args,token):
     if args.object[0]=='host':
         resp = requests.get(apiurl+'/addresses/search_hostname/'+str(args.object[1]), headers={'token':str(token)}, verify=False).json()
+        logging.debug(str(args.object)+'\n\n')
         if resp['success']:
             for host in resp['data']:
                 hostid = host['id']
@@ -472,54 +503,53 @@ Link:               {12}
             print('Hostname not found!')
 
 def funset(args,token):
+    #about to change network attributes
     if args.object[0]=='network':
-        # validating args
-        if fun_isnumber(args.object[1]) and fun_isnumber(args.object[3]):
-            if args.object[2] == 'nameservers' and fun_isvalidid(args.object[2],args.object[3]) and fun_isvalidid(args.object[0],args.object[1]):
-                # set nameservers for network
-                resp = requests.patch(apiurl+'/subnets/'+args.object[1], headers={'token':str(token)}, verify=False, data = {'nameserverId':args.object[3]}).json()
-                if resp['code']==200:
-                    print('''OK, set new Nameserver {0} to Network {1}'''.format(requests.get(apiurl+'/tools/nameservers/'+str(args.object[3]), headers={'token':str(token)}, verify=False).json()['data']['namesrv1'], requests.get(apiurl+'/subnets/'+str(args.object[1]), headers={'token':str(token)}, verify=False).json()['data']['subnet']+'/'+str(requests.get(apiurl+'/subnets/'+str(args.object[1]), headers={'token':str(token)}, verify=False).json()['data']['mask'])))
-                else:
-                    print('Something went wrong - Server response: '+str(resp))
-            elif args.object[2] == 'name':
-                pass
-            #planned
-            elif args.object[2] == 'nameservers':
-                pass
-            #planned
-            elif args.object[2] == 'device':
-                pass
-            #planned
-        elif args.object[2] == 'type' and fun_isipnetwork(args.object[1]):
-            id = fun_getidof('network',args.object[1])
-            resp = requests.patch(apiurl+'/subnets/'+str(id), headers={'token':str(token)}, verify=False, data = {'custom_Type':args.object[3]}).json()
-            network = str(requests.get(apiurl+'/subnets/'+str(id), headers={'token':str(token)}, verify=False).json()['data']['subnet']+'/'+str(requests.get(apiurl+'/subnets/'+str(id), headers={'token':str(token)}, verify=False).json()['data']['mask']))
-            if resp['code'] == 200:
-                print('OK - set field {0} for network {1} to "{2}"'.format(str(args.object[2]), str(network), str(args.object[3])))
-            else:
-                print('Encountered an error - response: {0}. \nEnsure you entered the correct value for custom field.'.format(str(resp)))
-            
-        elif args.object[2] == 'type' and fun_isvalidid(args.object[0],args.object[1]):
-            resp = requests.patch(apiurl+'/subnets/'+args.object[1], headers={'token':str(token)}, verify=False, data = {'custom_Type':args.object[3]}).json()
-            network = str(requests.get(apiurl+'/subnets/'+str(args.object[1]), headers={'token':str(token)}, verify=False).json()['data']['subnet']+'/'+str(requests.get(apiurl+'/subnets/'+str(args.object[1]), headers={'token':str(token)}, verify=False).json()['data']['mask']))
-            if resp['code'] == 200:
-                print('OK - set field {0} for network {1} to "{2}"'.format(str(args.object[2]), str(network), str(args.object[3])))
-            else:
-                print('Encountered an error - response: {0}. \nEnsure you entered the correct value for custom field.'.format(str(resp)))
-            
-            #elif args.object[2] == 'device':
-                # for setting custom_fields
-        elif fun_isipnetwork(args.object[1]) and fun_isnumber(args.object[3]):
-            netid = fun_getidof('network',args.object[1])
-            logging.debug(str(netid)+'\n\n')
-            resp = requests.patch(apiurl+'/subnets/'+str(netid), headers={'token':str(token)}, verify=False, data = {'nameserverId':args.object[3]}).json()
-            logging.debug(str(resp)+'\n\n')
+        # validating args (checking if both are looking like IDs, getting IDs if not)
+        if fun_isvalidid(args.object[0],args.object[1]) and fun_isvalidid(args.object[2],args.object[3]): 
+            id1 = args.object[1]; id2 = fun_isnumber(args.object[3])
+            logging.debug('Verified {0}, {1}, {2}, {3}'.format(str(args.object[2]),str(id2),str(args.object[0]),str(id1)))
+        elif fun_isipnetwork(args.object[1]):
+            id1 = fun_getidof('network',args.object[1])
+        if args.object[2] != 'type' and fun_isipnetwork(args.object[3]):
+            id1 = fun_getidof(args.object[2],args.object[3])
+        
+        logging.info('About to set attribute {0} to {1} for {2} "{3}"'.format(str(args.object[2]),str(args.object[3]),str(args.object[0]),str(id1)))
+        if args.object[2] == 'nameservers':
+        # set nameservers for network
+            resp = requests.patch(apiurl+'/subnets/'+id1, headers={'token':str(token)}, verify=False, data = {'nameserverId':id2}).json()
             if resp['code']==200:
-                print('''OK, set new Nameservers {0} to Network {1}'''.format(requests.get(apiurl+'/tools/nameservers/'+str(args.object[3]), headers={'token':str(token)}, verify=False).json()['data']['namesrv1'], str(args.object[1])))
+                print('''OK, set new Nameserver {0} to Network {1}'''.format(requests.get(apiurl+'/tools/nameservers/'+str(args.object[3]), headers={'token':str(token)}, verify=False).json()['data']['namesrv1'], requests.get(apiurl+'/subnets/'+str(args.object[1]), headers={'token':str(token)}, verify=False).json()['data']['subnet']+'/'+str(requests.get(apiurl+'/subnets/'+str(args.object[1]), headers={'token':str(token)}, verify=False).json()['data']['mask'])))
             else:
                 print('Something went wrong - Server response: '+str(resp))
-        pass
+
+        elif args.object[2] == 'description':
+        # set description for network
+            resp = requests.patch(apiurl+'/subnets/'+id1, headers={'token':str(token)}, verify=False, data = {'description':str(args.object[3])}).json()
+            if resp['code']==200:
+                print('''OK, set new description {0} to Network {1}'''.format(str(args.object[3]), requests.get(apiurl+'/subnets/'+str(id1), headers={'token':str(token)}, verify=False).json()['data']['subnet']+'/'+str(requests.get(apiurl+'/subnets/'+str(id1), headers={'token':str(token)}, verify=False).json()['data']['mask'])))
+            else:
+                print('Something went wrong - Server response: '+str(resp))
+            pass
+        #planned
+        elif args.object[2] == 'device':
+            resp = requests.patch(apiurl+'/subnets/'+id1, headers={'token':str(token)}, verify=False, data = {'device':str(args.object[3])}).json()
+            if resp['code']==200:
+                print('''OK, set Device to {0} for network {1}'''.format(str(args.object[3]), requests.get(apiurl+'/subnets/'+str(id1), headers={'token':str(token)}, verify=False).json()['data']['subnet']+'/'+str(requests.get(apiurl+'/subnets/'+str(id1), headers={'token':str(token)}, verify=False).json()['data']['mask'])))
+            else:
+                print('Something went wrong - Server response: '+str(resp))
+            pass
+        #planned
+        elif args.object[2] == 'type':
+        # Example for a custom field (set)
+            resp = requests.patch(apiurl+'/subnets/'+str(id1), headers={'token':str(token)}, verify=False, data = {'custom_Type':args.object[3]}).json()
+            network = str(requests.get(apiurl+'/subnets/'+str(id1), headers={'token':str(token)}, verify=False).json()['data']['subnet']+'/'+str(requests.get(apiurl+'/subnets/'+str(id1), headers={'token':str(token)}, verify=False).json()['data']['mask']))
+            if resp['code'] == 200:
+                print('OK - set field {0} for network {1} to "{2}"'.format(str(args.object[2]), str(network), str(args.object[3])))
+            else:
+                print('Encountered an error - response: {0}. \nEnsure you entered the correct value for field.'.format(str(resp)))
+
+
     elif args.object[0]=='device':
         pass
     elif args.object[0]=='ip':
@@ -565,13 +595,16 @@ def fun_isvalidid(type,id):
     elif type == 'network': url = apiurl+'/subnets/'+str(id)
     elif type == 'section': url = apiurl+'/sections/'+str(id)
     elif type == 'nameservers': url = apiurl+'/tools/nameservers/'+str(id)
+    elif type == 'device': url = apiurl+'/tools/devices/'+str(id)
     a=requests.get(url,headers={'token':str(token)}, verify=False).json()
     if a['success']:
+        logging.debug('Database object of type {0} and id {1} found'.format(type,str(id)))
         return True
     elif a['code']=='401':
         raise SystemExit('Got "not authorized" please check permissions!')
     else:
-        raise SystemExit('not a valid id. got response {0} when looking for id {1} '.format(a['code'],id))
+        logging.debug('Database object of type {0} and id {1} not found'.format(type,str(id)))
+        return False
     
 def fun_getidof(type,name):
     # fetching i.e. all networks, devices etc. for name and return appropriate id, if unique
@@ -613,20 +646,24 @@ def fun_getidof(type,name):
         elif len(id) == 0:raise SystemExit('None found for search string: '+str(name))
         elif len(id) ==1: return id
         else: raise SystemExit('Something happened - undefined')
-
     elif type == 'section': url = apiurl+'/sections/'+str(name)
     elif type == 'nameservers': url = apiurl+'/tools/nameservers/'+str(name)
+    elif type == 'device': 
+        #needs to be checked
+        url = apiurl+'/devices/search/'+str(name)
+        a=requests.get(url,headers={'token':str(token)}, verify=False).json()
+        logging.debug(a)
+        if a['success']: 
+            if len(a['data']) == 1:
+                return a['data'][0]['id']
+            elif len(a['data']) > 1:
+                for a in a['data']:
+                    id.append(a['id'])
+                raise SystemExit('Found multiple matching objects! IDs are: {0} \nTry "show network <id>" to identify the correct'.format(str(id)))
+            else: raise SystemExit('None found for search string: '+str(name))
+        else: raise SystemExit('Encountered a problem, please check input and/or debug')
     return id
 
-
 if __name__ == "__main__":
-    if args.verbose:logging.basicConfig(level=logging.DEBUG)
-    logging.debug(args)
-    if args.cmd=='show':
-        funshow(args,token)
-    elif args.cmd=='create':
-        funcreate(args,token)
-    elif args.cmd=='search':
-        funsearch(args,token)
-    elif args.cmd=='set':
-        funset(args,token)
+    fun_argparsing(args, token)
+
