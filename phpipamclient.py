@@ -1,6 +1,5 @@
 # Daniel Meier
 # import modules
-from distutils.log import info
 import urllib3
 import argparse
 import logging
@@ -25,20 +24,15 @@ parser.add_argument('-a', '--appid', help='set AppID ( overrides the app id set 
 parser.add_argument('-k', '--key', help='API Key (overrides Settings in script file)')
 parser.add_argument('-u', '--baseurl', help='PHPIPAM Base URL (ie http://phpipam.asd.fg - overrides Settings in script file)')
 
-
-subparser = parser.add_subparsers(required=True, dest='cmd', help='Tell what to do (show||search||set||create)')
+subparser = parser.add_subparsers(required=True, dest='cmd', help='Tell what to do (show || search || set || create)')
 
 # show known network 
 parser_show = subparser.add_parser('show')
 parser_show.add_argument('object', nargs='*', type=str, default=None, help='object to show / edit /create - "show network 10.0.0.0/8 192.168.100.0/24" (currently supported: network | vlan | section | ip | nameservers)')
 
-#parser_show.set_defaults(func=funshow)
-
 # search command (when IP is not known, search for hostname)
 parser_search = subparser.add_parser('search')
 parser_search.add_argument('object', nargs='*', type=str, default=None, help='search for address object by hostname')
-
-#parser_search.set_defaults(func=funsearch)
 
 # set command for altering object attributes
 parser_set = subparser.add_parser('set')
@@ -64,7 +58,7 @@ if args.key: apitoken = args.key
 if args.baseurl: baseurl = args.baseurl
 logging.debug('Setup: \nBase URL: '+baseurl+'\nApp ID: '+appid+'\nAPITOKEN '+apitoken)
 if baseurl[-1] == '/': baseurl = baseurl[:-1]
-apiurl = baseurl+'/api/'+appid               # creating URL to API Application
+apiurl = baseurl+'/api/'+appid                                      # creating URL to API Application
 #######################################################################################################
 
 #LogIn - obtaining session token, if Authis set to "User Token", else App token is sent with every request.
@@ -196,8 +190,7 @@ Network found, details below:
 '''.format(section,subnet,subnetdesc,nameserversn+' {'+nameserverss+'}',subnetmaster,str(vlanid), str(vlanname),str(vlandom),subnetedit,subnetscandisc,str(baseurl+str('/subnets/'+result['sectionId']+'/'+result['id']).replace('//','/'))))
                             section='';subnet='';vlanid = '';subnetdesc='';nameserverss = ''; nameserversn = '';vlanname = ''; vlandom = ''; subnetedit = '';subnetscandisc = ''
                     else: print('Network "{}" not found or not authorized!'.format(subnet))
-                vlanid = ''; vlanname = ''; vlandom = ''; nameserverss = ''; nameserversn = ''; section = ''
-            
+                vlanid = ''; vlanname = ''; vlandom = ''; nameserverss = ''; nameserversn = ''; section = ''        
     elif args.object[0]=='vlan':
         for vlan in args.object:
             if not vlan == 'vlan':
@@ -234,7 +227,8 @@ VLAN(s) found, details below:
 
 
 '''.format(vlansection,vlancustomer,vlanidnumber,vlandomain,vlanname,vlandesc,vlansubnet,vlanlink))
-
+                        vlansection='';vlancustomer='';vlanidnumber='';vlandomain='';vlanname='';vlandesc='';vlansubnet='';vlanlink=''
+                else: print('VLAN with ID "{}" not found or not authorized!'.format(vlan))
 
     elif args.object[0]=='section':
         for section in args.object:
@@ -500,7 +494,7 @@ Link:               {12}
 
 '''.format(host['hostname'],host['ip'],hosttag,hostdevicename+' ('+hostdeviceip+')',hostdevicelink,host['is_gateway'],subnet,hostsection,host['description'],host['owner'],host['editDate'],host['lastSeen'],hostlink))
         else:
-            print('Hostname not found!')
+            print('Hostname "{}" not found!'.format(args.object[1]))
 
 def funset(args,token):
     #about to change network attributes
@@ -522,7 +516,6 @@ def funset(args,token):
                 print('''OK, set new Nameserver {0} to Network {1}'''.format(requests.get(apiurl+'/tools/nameservers/'+str(args.object[3]), headers={'token':str(token)}, verify=False).json()['data']['namesrv1'], requests.get(apiurl+'/subnets/'+str(args.object[1]), headers={'token':str(token)}, verify=False).json()['data']['subnet']+'/'+str(requests.get(apiurl+'/subnets/'+str(args.object[1]), headers={'token':str(token)}, verify=False).json()['data']['mask'])))
             else:
                 print('Something went wrong - Server response: '+str(resp))
-
         elif args.object[2] == 'description':
         # set description for network
             resp = requests.patch(apiurl+'/subnets/'+id1, headers={'token':str(token)}, verify=False, data = {'description':str(args.object[3])}).json()
@@ -531,7 +524,6 @@ def funset(args,token):
             else:
                 print('Something went wrong - Server response: '+str(resp))
             pass
-        #planned
         elif args.object[2] == 'device':
             resp = requests.patch(apiurl+'/subnets/'+id1, headers={'token':str(token)}, verify=False, data = {'device':str(args.object[3])}).json()
             if resp['code']==200:
@@ -539,7 +531,6 @@ def funset(args,token):
             else:
                 print('Something went wrong - Server response: '+str(resp))
             pass
-        #planned
         elif args.object[2] == 'type':
         # Example for a custom field (set)
             resp = requests.patch(apiurl+'/subnets/'+str(id1), headers={'token':str(token)}, verify=False, data = {'custom_Type':args.object[3]}).json()
@@ -554,11 +545,6 @@ def funset(args,token):
         pass
     elif args.object[0]=='ip':
         pass
-    elif args.object[0]=='nameservers':
-        if not fun_isnumber(args.object[1]):
-            fun_getidof('nameservers',args.object[0])
-        requests.get(apiurl+'/tools/nameservers/'+str(args.object[0]), headers={'token':str(token)}, verify=False).json()
-    pass
 
 def fun_isip(ipcandidate):
     try:
