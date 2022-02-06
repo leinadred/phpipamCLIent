@@ -57,6 +57,8 @@ Custom fields can be added to output too (will add an example in extra file)
   - set network (id or cidr subnet) nameservers (id)  
   - set network (id or cidr subnet) type (type-value)
   (example custom field for categorizing network object)
+  
+![Commands](https://github.com/leinadred/phpipamCLIent/blob/main/20220205_PhpipamCLIent.png?raw=true) 
 
 ## auth
 
