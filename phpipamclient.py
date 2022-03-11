@@ -163,7 +163,12 @@ Default value:          {4}
                             else: nameserversn = 'none defined'
                             section = requests.get(apiurl+'/sections/'+str(result['sectionId'])+'/', headers={'token':str(token)}, verify=False).json()['data']['name']
                             if result['masterSubnetId'] != '0':
-                                subnetmaster = requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['name']
+                                if requests.get(apiurl+'/folders/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['success']:
+                                    subnetmaster = str(requests.get(apiurl+'/folders/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['description']+' ( subnet id:'+result['masterSubnetId']+')')
+                                elif requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['id']+' ('+requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['subnet']+'/'+requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['success']:
+                                    subnetmaster = str(requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['id']+' ('+requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['subnet']+'/'+requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['mask']+')')
+                                else:
+                                    subnetmaster = 'unknown (error fetching)'
                             else:
                                 subnetmaster = 'Root'
                             subnet = str(ipaddress.IPv4Network(str(result['subnet'])+'/'+str(result['mask'])).with_netmask)
@@ -208,8 +213,9 @@ Network found, details below:
                         vlanname = data['name']
                         vlandesc = data['description']
                         vlansubnet = ''
-                        for vlansub in requests.get(apiurl+'/vlan/'+vlanid+'/subnets/', headers={'token':str(token)}, verify=False).json()['data']:
-                            vlansubnet = vlansubnet+'\n\t\tSubnet:\t\t{0}\n\t\tDescription:\t{1}\n\t\tLink:\t\t{2}'.format(vlansub['subnet']+'/'+vlansub['mask'],vlansub['description'],str(baseurl+'subnets/'+vlansub['sectionId']+'/'+vlansub['id']))
+                        if requests.get(apiurl+'/vlan/'+vlanid+'/subnets/', headers={'token':str(token)}, verify=False).json()['success']:
+                            for vlansub in requests.get(apiurl+'/vlan/'+vlanid+'/subnets/', headers={'token':str(token)}, verify=False).json()['data']:
+                                vlansubnet = vlansubnet+'\n\t\tSubnet:\t\t{0}\n\t\tDescription:\t{1}\n\t\tLink:\t\t{2}'.format(vlansub['subnet']+'/'+vlansub['mask'],vlansub['description'],str(baseurl+'/subnets/'+vlansub['sectionId']+'/'+vlansub['id']))
                         vlanlink = str(baseurl+'/vlan/'+vlanid).replace('//','/')
                         print('''\
 VLAN(s) found, details below:
