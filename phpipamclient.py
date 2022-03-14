@@ -165,7 +165,7 @@ Default value:          {4}
                             if result['masterSubnetId'] != '0':
                                 if requests.get(apiurl+'/folders/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['success']:
                                     subnetmaster = str(requests.get(apiurl+'/folders/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['description']+' ( subnet id:'+result['masterSubnetId']+')')
-                                elif requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['id']+' ('+requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['subnet']+'/'+requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['success']:
+                                elif requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['success']:
                                     subnetmaster = str(requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['id']+' ('+requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['subnet']+'/'+requests.get(apiurl+'/subnets/'+result['masterSubnetId'], headers={'token':str(token)}, verify=False).json()['data']['mask']+')')
                                 else:
                                     subnetmaster = 'unknown (error fetching)'
